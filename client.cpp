@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
+#include <fcntl.h>
 
 #include "cs.h"
 #include "DefineCode.h"
@@ -36,11 +37,18 @@ int sendMsgToServer(sockaddr_in serverAddr, int fd_skt, int KeyAgreement = DATA_
             perror("client miss DES_KEY");
             return MISS_DES_KEY;
         }
-
-        cin.getline(cMsg, sizeof(cMsg)); // 不用cin，因为不能含空格
+        int count = 0, sum = 0;
+        while((count = read(STDIN_FILENO, cMsg, MSG_SIZE)) > 0) {
+            sum += count;
+        }
+        if (count == -1 && errno != EAGAIN){
+            perror("server sendMsgToClient() read error");
+            return CLIENT_READ_ERR;
+        }
         if (strcmp(cMsg, "quit") == 0) {
             return INPUT_QUIT;
         }
+        cMsg[sum - 1] = '\0'; // 将末尾多余的\n置为\0
         
         cout << "Send message to <" << inet_ntoa(serverAddr.sin_addr) << ">: " << cMsg << endl;
 
@@ -141,6 +149,8 @@ int KeyAgreement(sockaddr_in serverAddr, int fd_skt) {
 }
 
 int client() {
+    struct epoll_event events[MAX_LINE]; // epoll数据结构
+
     sockaddr_in serverAddr; // 一个将来与套接字绑定的结构体
     memset(&serverAddr, 0, sizeof(serverAddr));
     serverAddr.sin_port = (PORT); // 从客户端的PORT端口接收服务器信息
@@ -168,7 +178,7 @@ int client() {
         return CLIENT_SOCKET_ERR;
     }
 
-   if (connect(fd_skt, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) { // connect向服务器发起连接请求
+    if (connect(fd_skt, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) { // connect向服务器发起连接请求
 	    perror("client connect() err");       
         return CLIENT_CONNECT_ERR;
     }
@@ -177,16 +187,51 @@ int client() {
         return CLIENT_KEY_AGRRE_ERR;
     }
 
+    int fd_ep = epoll_create(EPOLL_SIZE);  // 创建epoll的句柄，fd_ep是epoll的文件描述符
+    if (fd_ep < 0) { // 若成功返回一个大于0的值，表示 epoll 实例；出错返回-1
+        perror("client epoll_create err");
+        return CLIENT_EPOLL_CREAT_ERR;
+    }
+
+    struct epoll_event ep_event, ep_input; // 针对监听的fd_skt，创建2个epollevent
+    fcntl(fd_skt, F_SETFL, O_NONBLOCK); // 设置非阻塞
+    ep_event.data.fd = fd_skt;
+    ep_event.events = EPOLLIN | EPOLLET;
+    if (epoll_ctl(fd_ep, EPOLL_CTL_ADD, fd_skt, &ep_event) < 0) { // 注册epoll事件
+        // 参数3：需要监听的fd，参数4：告诉内核需要监听什么事
+        perror("client epoll_ctl-1 error!\n");
+        return CLIENT_EPOLL_CTL_ERR;
+    }
+
+    // 给fd_ep绑定监听标准输入的文件描述符（为了实现全双工）
+    fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
+    ep_input.data.fd  = STDIN_FILENO;
+    ep_input.events = EPOLLIN | EPOLLET;
+    if (epoll_ctl(fd_ep, EPOLL_CTL_ADD, STDIN_FILENO, &ep_input) < 0) {
+        perror("client epoll_ctl-2 error");
+        return CLIENT_EPOLL_CTL_ERR;
+    }
+
     cout << "Connect Success! \nBegin to chat..." << endl;
     cin.ignore(1024,'\n'); // 去除上一个cin残留在缓冲区的\n
     while(1) {
-        if (int code = sendMsgToServer(serverAddr, fd_skt) != 0) { // 给服务器发消息
-            break;
-        }
-        if (recvMsgFromServer(serverAddr, fd_skt) != 0) { //接收服务器消息
-            break;
+        int eventNum = epoll_wait(fd_ep, events, MAX_LINE, EPOLL_TIMEOUT);  
+
+        for (int i = 0; i < eventNum; ++i) {
+            if (events[i].events == EPOLLIN) { // 接收到数据，读socket
+                if (events[i].data.fd == STDIN_FILENO) { // 标准输入
+                    if (int code = sendMsgToServer(serverAddr, fd_skt) != SUCCESS) { // 给服务器发消息
+                        if (code == INPUT_QUIT) { // 客户端选择结束当前对话
+                            cout << "--- client end ---" << endl;
+                            close(fd_skt); // 服务器会recv err: SUCCESS，从而结束连接
+                            return SUCCESS;
+                        }
+                    }
+                }
+                else { // TCP连接发来的数据
+                    recvMsgFromServer(serverAddr, fd_skt); // 接收服务器消息
+                }
+            }
         }
     }
-    cout << "--- client end ---" << endl;
-    close(fd_skt); // 服务器会recv err: SUCCESS，从而结束连接
 }

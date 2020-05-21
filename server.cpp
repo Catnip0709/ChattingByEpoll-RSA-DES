@@ -10,13 +10,13 @@
 #include <errno.h>
 #include <stdio.h>
 #include <fcntl.h>
+
 #include "cs.h"
 #include "DefineCode.h"
 #include "Des.h"
 #include "Rsa.h"
 
 using namespace std;
-#define MAX_LINE 20
 
 struct clientInfo {
     int fd;
@@ -26,7 +26,7 @@ struct clientInfo {
     bool KeyAgreement = true;
 };
 
-clientInfo *cInfo;
+clientInfo *cInfo; // TODO::暂未实现服务器一对多
 
 int sendMsgToClient(clientInfo *cInfo, int KeyAgreement = DATA_EXCHANGE, string key = "") {
     char sMsg[MSG_SIZE];
@@ -44,16 +44,15 @@ int sendMsgToClient(clientInfo *cInfo, int KeyAgreement = DATA_EXCHANGE, string 
             return MISS_DES_KEY;
         }
         if (KeyAgreement == DATA_EXCHANGE) {
-            cin.ignore(1024,'\n');
             int count = 0, sum = 0;
             while((count = read(STDIN_FILENO, sMsg, MSG_SIZE)) > 0) {
-                sum+=count;
+                sum += count;
             }
             if (count == -1 && errno != EAGAIN){
                 perror("server sendMsgToClient() read error");
                 return SERVER_READ_ERR;
             }
-            //cin.getline(sMsg, sizeof(sMsg));
+            sMsg[sum - 1] = '\0'; // 将末尾多余的\n置为\0
             cout << "Send message to <" << inet_ntoa(cInfo->clientAddr->sin_addr) << ">: " 
                  << sMsg << endl;
         }
@@ -152,8 +151,8 @@ int server() {
      
     int fd_ep = epoll_create(EPOLL_SIZE);  // 创建epoll的句柄，fd_ep是epoll的文件描述符
     if (fd_ep < 0) { // 若成功返回一个大于0的值，表示 epoll 实例；出错返回-1
-        perror("client epoll_create err");
-        return SERVER_SOCKET_ERR;
+        perror("server epoll_create err");
+        return SERVER_EPOLL_CREAT_ERR;
     }
 
     struct epoll_event ep_event, ep_input; // 针对监听的fd_skt，创建2个epollevent
@@ -162,8 +161,8 @@ int server() {
     ep_event.events = EPOLLIN | EPOLLET;
     if (epoll_ctl(fd_ep, EPOLL_CTL_ADD, fd_skt, &ep_event) < 0) { // 注册epoll事件
         // 参数3：需要监听的fd，参数4：告诉内核需要监听什么事
-        perror("server epoll_ctl error!\n");
-        return -1;
+        perror("server epoll_ctl-1 error!\n");
+        return SERVER_EPOLL_CTL_ERR;
     }
 
     // 给fd_ep绑定监听标准输入的文件描述符（为了实现全双工）
@@ -171,7 +170,7 @@ int server() {
     ep_input.data.fd  = STDIN_FILENO;
     ep_input.events = EPOLLIN | EPOLLET;
     if (epoll_ctl(fd_ep, EPOLL_CTL_ADD, STDIN_FILENO, &ep_input) < 0) {
-        perror("server KeyAgreement() epoll_ctl-2 error");
+        perror("server epoll_ctl-2 error");
         return SERVER_EPOLL_CTL_ERR;
     }
 
@@ -188,7 +187,7 @@ int server() {
     cout << "Listening..." << endl;
     cin.ignore(1024,'\n');
     while(1) {
-        int eventNum = epoll_wait(fd_ep, events, MAX_LINE, SERVER_EPOLL_TIMEOUT);   
+        int eventNum = epoll_wait(fd_ep, events, MAX_LINE, EPOLL_TIMEOUT);   
         //参数2：epoll将发生的事件复制到events数组中。events不可以是空指针，内核只负责把数据复制到数组中，不会在用户态中分配内存，效率很高。
         //参数3: 返回的events的最大个数，如果最大个数大于实际触发的个数，则下次epoll_wait的时候仍然可以返回
         //返回值：大于0表示事件的个数；等于0表示超时；小于0表示出错。
@@ -243,9 +242,13 @@ int server() {
             }
             else if (events[i].events == EPOLLIN) { // 接收到数据，读socket
                 if (events[i].data.fd == STDIN_FILENO) { // 标准输入
+                    // TODO::暂未实现服务器一对多
                     int KeyAgreement = DATA_EXCHANGE;
-                    if (sendMsgToClient(cInfo, KeyAgreement) != SUCCESS) { // 给客户端发消息
-                        break;
+                    if (int code = sendMsgToClient(cInfo, KeyAgreement) != SUCCESS) { // 给客户端发消息
+                        if (code == INPUT_QUIT) { // 服务器选择结束当前对话
+                            close(cInfo->fd);
+                        }
+                        continue;
                     }
                 }
                 else { // TCP连接发来的数据
@@ -268,9 +271,7 @@ int server() {
                         cout << "Begin to chat..." << endl;
                     }
                     else { // 普通数据交互阶段
-                        if (recvMsgFromClient(cInfo) != SUCCESS) { // 接收客户端消息
-                            continue;
-                        }
+                        recvMsgFromClient(cInfo); // 接收客户端消息
                     }
                 }
             }

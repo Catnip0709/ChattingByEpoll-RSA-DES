@@ -1,9 +1,10 @@
 // 业务值定义
 #define EPOLL_SIZE              256
+#define MAX_LINE                20
 #define PORT                    9977
 #define MSG_SIZE                4096
 #define DEFAULT_SERVER          "127.0.0.1"
-#define SERVER_EPOLL_TIMEOUT    -1
+#define EPOLL_TIMEOUT           -1
 #define int64                   unsigned long long int
 #define MSG_HEAD_KEY            "key"  // 客户端发给服务器的消息头部1
 #define MSG_HEAD_DATA           "data" // 客户端发给服务器的消息头部2
@@ -38,6 +39,9 @@
 #define CLIENT_RECV_ERR         1014
 #define CLIENT_KEY_AGRRE_ERR    1015
 #define CLIENT_KEY_CONFIRM_ERR  1016
+#define CLIENT_EPOLL_CREAT_ERR  1017
+#define CLIENT_EPOLL_CTL_ERR    1018
+#define CLIENT_READ_ERR         1019
 
 #define DES_ERR_BIT             1020
 #define INIT_REPLACE_IP         1021 // 初始置换IP
