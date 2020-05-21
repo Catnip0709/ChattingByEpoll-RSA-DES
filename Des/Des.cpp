@@ -1,10 +1,22 @@
 #include <iostream>
 #include <vector>
 #include <map>
-#include "Des.h"
-#include "DefineCode.h"
-#include "HelpFunc.h"
+#include <stdlib.h>
+#include "../Des.h"
+#include "../DefineCode.h"
+#include "../HelpFunc.h"
 using namespace std;
+
+// 生成随机DES秘钥，8个字母的string
+string CDesOperate::GenerateDesKey() {
+    string desKey = "";
+    srand((unsigned)time(NULL));
+    for (int i = 0; i < 8; ++i) {
+        char temp = 65 + rand() % 26;
+        desKey += temp;
+    }
+    return desKey;
+}
 
 // 初始置换IP，逆初始置换IP
 vector<bool> CDesOperate::InitReplacementIP(vector<bool> input, int type) {

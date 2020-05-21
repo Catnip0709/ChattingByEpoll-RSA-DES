@@ -2,9 +2,9 @@
 #include <vector>
 #include <map>
 #include <string>
-#include "Des.h"
-#include "DefineCode.h"
-#include "HelpFunc.h"
+#include "../Des.h"
+#include "../DefineCode.h"
+#include "../HelpFunc.h"
 using namespace std;
 
 int CDesOperate::Decry(string cipherText, string key, string& decryResult) {

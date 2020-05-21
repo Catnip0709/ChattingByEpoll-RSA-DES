@@ -6,6 +6,7 @@ class CDesOperate {
 public:
     int Encry(string plainText, string key, string& encryResult);  // 加密函数
     int Decry(string cipherText, string key, string& decryResult); // 解密函数
+    static string GenerateDesKey(); // 生成随机DES秘钥
 
 private:
     vector<bool> EncryPro(vector<bool> input, vector<vector<bool> > subKey); // 处理64bit的加密函数
@@ -54,7 +55,7 @@ static int pc_last[64] = {
 };
 
 // 按位取值或赋值
-static int pc_by_bit[64] = {
+static unsigned int pc_by_bit[64] = {
     0x80000000L,0x40000000L,0x20000000L, 0x10000000L, 0x8000000L,
     0x4000000L, 0x2000000L, 0x1000000L,  0x800000L,   0x400000L,
     0x200000L,  0x100000L,  0x80000L,    0x40000L,    0x20000L,  0x10000L,
@@ -91,7 +92,7 @@ static int des_E[48] = {
 };
 
 // 选择压缩运算S盒
-static int des_S[8][64] = {
+static unsigned int des_S[8][64] = {
  {
     0xe,0x0,0x4,0xf,0xd,0x7,0x1,0x4,0x2,0xe,0xf,0x2,0xb,
     0xd,0x8,0x1,0x3,0xa,0xa,0x6,0x6,0xc,0xc,0xb,0x5,0x9,

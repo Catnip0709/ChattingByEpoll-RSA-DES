@@ -1,7 +1,7 @@
 #include <iostream>
 #include <vector>
-#include "Des.h"
-#include "HelpFunc.h"
+#include "../Des.h"
+#include "../HelpFunc.h"
 using namespace std;
 
 // f函数 = 选择扩展运算E + 密钥加运算 + 选择压缩运算S + 置换P

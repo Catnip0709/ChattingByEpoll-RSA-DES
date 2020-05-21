@@ -1,5 +1,3 @@
-#include <iostream>
-#include <vector>
 #include "DefineCode.h"
 #include "HelpFunc.h"
 using namespace std;
@@ -51,4 +49,25 @@ vector<bool> XOR(vector<bool> input1, vector<bool> input2) {
         output.push_back(input1[i] ^ input2[i]);
     }
     return output;
+}
+
+// 将string转为int64，ASCII中0 = 48, 9 = 57
+int64 fromStrToInt64(string str) {
+    int64 result = 0;
+    int64 help = 1;
+    for (int i = str.size() - 1; i >= 0; --i) {
+        result += (str[i] - 48) * help;
+        help *= 10;
+    }
+    return result;
+}
+
+// 将16bit的short转成2个字母的string
+string fromShortToString(unsigned short num) {
+    string result = "";
+    unsigned short num1 = num >> 8;
+    result += num1;
+    unsigned short num2 = num & 0b0000000011111111;
+    result += num2;
+    return result;
 }

@@ -1,9 +1,9 @@
 #include <iostream>
 #include <string.h>
 #include <vector>
-#include "Des.h"
-#include "DefineCode.h"
-#include "HelpFunc.h"
+#include "../Des.h"
+#include "../DefineCode.h"
+#include "../HelpFunc.h"
 using namespace std;
 
 // 生成16个密钥中的每一个子密钥

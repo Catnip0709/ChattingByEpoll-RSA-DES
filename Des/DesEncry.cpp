@@ -2,9 +2,9 @@
 #include <vector>
 #include <map>
 #include <string>
-#include "Des.h"
-#include "DefineCode.h"
-#include "HelpFunc.h"
+#include "../Des.h"
+#include "../DefineCode.h"
+#include "../HelpFunc.h"
 using namespace std;
 
 int CDesOperate::Encry(string plainText, string key, string& encryResult) {
