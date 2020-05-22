@@ -45,10 +45,12 @@ int sendMsgToServer(sockaddr_in serverAddr, int fd_skt, int KeyAgreement = DATA_
             perror("server sendMsgToClient() read error");
             return CLIENT_READ_ERR;
         }
+        
+        cMsg[sum - 1] = '\0'; // 将末尾多余的\n置为\0
+
         if (strcmp(cMsg, "quit") == 0) {
             return INPUT_QUIT;
         }
-        cMsg[sum - 1] = '\0'; // 将末尾多余的\n置为\0
         
         cout << "Send message to <" << inet_ntoa(serverAddr.sin_addr) << ">: " << cMsg << endl;
 
@@ -220,12 +222,11 @@ int client() {
         for (int i = 0; i < eventNum; ++i) {
             if (events[i].events == EPOLLIN) { // 接收到数据，读socket
                 if (events[i].data.fd == STDIN_FILENO) { // 标准输入
-                    if (int code = sendMsgToServer(serverAddr, fd_skt) != SUCCESS) { // 给服务器发消息
-                        if (code == INPUT_QUIT) { // 客户端选择结束当前对话
-                            cout << "--- client end ---" << endl;
-                            close(fd_skt); // 服务器会recv err: SUCCESS，从而结束连接
-                            return SUCCESS;
-                        }
+                    int code = sendMsgToServer(serverAddr, fd_skt); // 给服务器发消息
+                    if (code == INPUT_QUIT) { // 客户端选择结束当前对话
+                        cout << "--- client end ---" << endl;
+                        close(fd_skt); // 服务器会recv err: SUCCESS，从而结束连接
+                        return SUCCESS;
                     }
                 }
                 else { // TCP连接发来的数据
